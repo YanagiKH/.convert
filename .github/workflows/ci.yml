@@ -51,10 +51,11 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - name: Ensure FFmpeg is available
-        run: ffmpeg -version || (sudo apt-get update && sudo apt-get install -y ffmpeg)
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev]"
+      - run: python -m pip install -e ".[dev]" "imageio-ffmpeg>=0.6,<1"
+      - name: Configure test FFmpeg
+        shell: bash
+        run: echo "DOTCONVERT_FFMPEG=$(python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')" >> "$GITHUB_ENV"
       - run: pytest tests/test_media.py -v
 
   build:
