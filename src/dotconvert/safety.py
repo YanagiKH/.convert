@@ -8,7 +8,6 @@ from .errors import DotConvertError
 from .models import ConversionMode, ConversionPlan, ConversionWarning, Severity
 from .registry import FormatFamily, extension_for_path, family_for_extension, normalize_extension
 
-
 LOSSY_IMAGE = {".jpg", ".webp", ".gif"}
 LOSSY_AUDIO = {".mp3", ".ogg", ".aac", ".m4a"}
 LOSSY_VIDEO = {".mp4", ".webm", ".avi", ".mov"}

@@ -6,7 +6,7 @@
 
 `.convert` is a desktop file-format converter designed around two rules: perform a real conversion instead of merely renaming an extension, and leave the original file untouched until a valid output has been produced.
 
-The interface is runs on Windows and Linux. A command-line mode is included for automation and testing.
+The interface is written in Traditional Chinese and runs on Windows and Linux. A command-line mode is included for automation and testing.
 
 ## Features
 
