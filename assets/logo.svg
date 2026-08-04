@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="240" viewBox="0 0 960 240" role="img" aria-labelledby="title desc">
+  <title id="title">.convert</title>
+  <desc id="desc">A file icon changing safely from one extension to another.</desc>
+  <rect width="960" height="240" rx="36" fill="#111827"/>
+  <path d="M96 44h112l48 48v104H96z" fill="#f8fafc"/>
+  <path d="M208 44v48h48" fill="#cbd5e1"/>
+  <path d="M286 120h92" stroke="#38bdf8" stroke-width="18" stroke-linecap="round"/>
+  <path d="m350 84 40 36-40 36" fill="none" stroke="#38bdf8" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="430" y="152" fill="#f8fafc" font-family="Segoe UI, Arial, sans-serif" font-size="92" font-weight="700">.convert</text>
+</svg>
