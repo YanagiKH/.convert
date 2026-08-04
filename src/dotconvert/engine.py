@@ -6,10 +6,23 @@ from pathlib import Path
 
 from send2trash import send2trash
 
-from .converters import convert_archive, convert_data, convert_image, convert_media, convert_text, find_ffmpeg
+from .converters import (
+    convert_archive,
+    convert_data,
+    convert_image,
+    convert_media,
+    convert_text,
+    find_ffmpeg,
+)
 from .errors import DotConvertError
 from .models import ConversionMode, ConversionPlan, ConversionResult, ConversionWarning, Severity
-from .registry import FormatFamily, available_targets, extension_for_path, family_for_extension, normalize_extension
+from .registry import (
+    FormatFamily,
+    available_targets,
+    extension_for_path,
+    family_for_extension,
+    normalize_extension,
+)
 from .safety import assess_risks, validate_plan
 
 

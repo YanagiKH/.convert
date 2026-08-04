@@ -8,7 +8,6 @@ from pathlib import Path
 from ..errors import ExternalToolError
 from ..registry import normalize_extension
 
-
 AUDIO_TARGETS = {".mp3", ".wav", ".flac", ".ogg", ".aac", ".m4a"}
 VIDEO_TARGETS = {".mp4", ".mkv", ".webm", ".mov", ".avi"}
 

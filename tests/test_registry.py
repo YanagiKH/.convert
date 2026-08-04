@@ -1,6 +1,11 @@
 from pathlib import Path
 
-from dotconvert.registry import FormatFamily, extension_for_path, family_for_extension, normalize_extension
+from dotconvert.registry import (
+    FormatFamily,
+    extension_for_path,
+    family_for_extension,
+    normalize_extension,
+)
 
 
 def test_multi_suffix_and_aliases() -> None:

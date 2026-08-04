@@ -7,7 +7,6 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from ..errors import DotConvertError
 from ..registry import normalize_extension
 
-
 PIL_FORMATS = {
     ".png": "PNG",
     ".jpg": "JPEG",
