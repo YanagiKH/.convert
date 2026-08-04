@@ -4,10 +4,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from .app import run_app
-from .engine import ConversionEngine
-from .errors import DotConvertError
-from .models import ConversionMode, ConversionPlan
+from dotconvert.engine import ConversionEngine
+from dotconvert.errors import DotConvertError
+from dotconvert.models import ConversionMode, ConversionPlan
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -24,6 +23,8 @@ def _parser() -> argparse.ArgumentParser:
 def main() -> int:
     args = _parser().parse_args()
     if args.source is None:
+        from dotconvert.app import run_app
+
         run_app()
         return 0
     if args.destination is None:
