@@ -234,7 +234,10 @@ object ConversionCore {
             when (item) {
                 is JSONObject -> item.toString()
                 is JSONArray -> item.toString()
-                else -> JSONObject.valueToString(item)
+                null, JSONObject.NULL -> "null"
+                is String -> JSONObject.quote(item)
+                is Number, is Boolean -> item.toString()
+                else -> JSONObject.quote(item.toString())
             }
         }
     }
