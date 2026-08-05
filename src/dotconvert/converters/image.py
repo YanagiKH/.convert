@@ -15,6 +15,12 @@ PIL_FORMATS = {
     ".tiff": "TIFF",
     ".gif": "GIF",
     ".ico": "ICO",
+    ".tga": "TGA",
+    ".dds": "DDS",
+    ".pcx": "PCX",
+    ".ppm": "PPM",
+    ".pgm": "PPM",
+    ".pbm": "PPM",
 }
 
 
@@ -34,21 +40,31 @@ def _prepare_frame(image: Image.Image, target: str) -> Image.Image:
         return _flatten_for_jpeg(image)
     if target == ".gif":
         return image.convert("RGBA").convert("P", palette=Image.Palette.ADAPTIVE)
-    if target == ".ico":
+    if target in {".ico", ".dds", ".tga"}:
         return image.convert("RGBA")
     if target == ".bmp" and image.mode not in {"1", "L", "P", "RGB", "RGBA"}:
         return image.convert("RGBA")
+    if target == ".ppm":
+        return image.convert("RGB")
+    if target == ".pgm":
+        return image.convert("L")
+    if target == ".pbm":
+        return image.convert("1")
+    if target == ".pcx" and image.mode not in {"1", "L", "P", "RGB"}:
+        return image.convert("RGB")
     return image.copy()
 
 
 def convert_image(source: Path, destination: Path, target_extension: str, quality: int) -> None:
     target = normalize_extension(target_extension)
-    output_format = PIL_FORMATS[target]
+    output_format = PIL_FORMATS.get(target)
+    if output_format is None:
+        raise DotConvertError(f"Unsupported image target: {target}")
+    frames: list[Image.Image] = []
     try:
         with Image.open(source) as image:
             frame_count = getattr(image, "n_frames", 1)
             supports_multiframe = target in {".gif", ".webp", ".tiff"}
-            frames: list[Image.Image] = []
             if frame_count > 1 and supports_multiframe:
                 for index in range(frame_count):
                     image.seek(index)
@@ -64,7 +80,15 @@ def convert_image(source: Path, destination: Path, target_extension: str, qualit
             if target == ".png":
                 save_options["optimize"] = True
             if target == ".ico":
-                save_options["sizes"] = [(16, 16), (24, 24), (32, 32), (48, 48), (64, 64), (128, 128), (256, 256)]
+                save_options["sizes"] = [
+                    (16, 16),
+                    (24, 24),
+                    (32, 32),
+                    (48, 48),
+                    (64, 64),
+                    (128, 128),
+                    (256, 256),
+                ]
             if len(frames) > 1:
                 durations: list[int] = []
                 for index in range(frame_count):
@@ -80,7 +104,8 @@ def convert_image(source: Path, destination: Path, target_extension: str, qualit
             if exif and target in {".jpg", ".webp", ".tiff"}:
                 save_options["exif"] = exif
             frames[0].save(destination, format=output_format, **save_options)
-            for frame in frames:
-                frame.close()
-    except (UnidentifiedImageError, OSError, ValueError) as exc:
+    except (UnidentifiedImageError, OSError, ValueError, KeyError) as exc:
         raise DotConvertError(f"Image conversion failed: {exc}") from exc
+    finally:
+        for frame in frames:
+            frame.close()

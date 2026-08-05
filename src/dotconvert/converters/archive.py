@@ -6,6 +6,7 @@ import tarfile
 import tempfile
 import zipfile
 from pathlib import Path
+from typing import Iterator
 
 from ..errors import DotConvertError, UnsafeArchiveError
 from ..registry import extension_for_path, normalize_extension
@@ -72,13 +73,18 @@ def _extract_tar(source: Path, root: Path) -> None:
                     shutil.copyfileobj(extracted, output_handle, length=1024 * 1024)
 
 
-def _iter_files(root: Path):
+def _iter_files(root: Path) -> Iterator[tuple[Path, Path]]:
     for path in sorted(root.rglob("*")):
         yield path, path.relative_to(root)
 
 
 def _write_zip(root: Path, destination: Path) -> None:
-    with zipfile.ZipFile(destination, mode="w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+    with zipfile.ZipFile(
+        destination,
+        mode="w",
+        compression=zipfile.ZIP_DEFLATED,
+        compresslevel=6,
+    ) as archive:
         for path, relative in _iter_files(root):
             if path.is_dir():
                 archive.writestr(relative.as_posix().rstrip("/") + "/", b"")
@@ -86,9 +92,14 @@ def _write_zip(root: Path, destination: Path) -> None:
                 archive.write(path, relative.as_posix())
 
 
-def _write_tar(root: Path, destination: Path, compressed: bool) -> None:
-    mode = "w:gz" if compressed else "w"
-    with tarfile.open(destination, mode=mode, format=tarfile.PAX_FORMAT) as archive:
+def _write_tar(root: Path, destination: Path, target: str) -> None:
+    modes = {
+        ".tar": "w",
+        ".tar.gz": "w:gz",
+        ".tar.bz2": "w:bz2",
+        ".tar.xz": "w:xz",
+    }
+    with tarfile.open(destination, mode=modes[target], format=tarfile.PAX_FORMAT) as archive:
         for path, relative in _iter_files(root):
             archive.add(path, arcname=relative.as_posix(), recursive=False)
 
@@ -105,11 +116,11 @@ def convert_archive(source: Path, destination: Path, target_extension: str) -> N
                 _extract_tar(source, root)
             if target == ".zip":
                 _write_zip(root, destination)
-            elif target == ".tar":
-                _write_tar(root, destination, compressed=False)
-            elif target == ".tar.gz":
-                _write_tar(root, destination, compressed=True)
+            elif target in {".tar", ".tar.gz", ".tar.bz2", ".tar.xz"}:
+                _write_tar(root, destination, target)
             else:
                 raise DotConvertError(f"Unsupported archive target: {target}")
+    except DotConvertError:
+        raise
     except (OSError, zipfile.BadZipFile, tarfile.TarError) as exc:
         raise DotConvertError(f"Archive conversion failed: {exc}") from exc

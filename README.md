@@ -4,47 +4,66 @@
 
 # .convert
 
-`.convert` is a desktop file-format converter designed around two rules: perform a real conversion instead of merely renaming an extension, and leave the original file untouched until a valid output has been produced.
+`.convert` converts files without treating an extension change as a conversion. It writes to a temporary file first, checks that the result is non-empty, and only then replaces or creates the selected output.
 
-The interface is runs on Windows and Linux. A command-line mode is included for automation and testing.
+The desktop application runs on Windows and Linux. A native Android application is included under [`android/`](android/).
 
-## Features
+## What changed in 1.1
 
-- Dedicated desktop window built with the Python standard library's Tk interface.
-- Only compatible target formats are offered for the selected source file.
-- Save-as mode preserves the source file.
-- Replace-source mode moves the original file to the system recycle bin only after conversion succeeds.
-- Existing destinations are never overwritten unless the user explicitly enables it.
-- Conversion is written to a temporary file in the destination directory and committed with an atomic replacement.
-- Known quality, transparency, animation, formatting, metadata, stream, and destructive-operation risks are shown before execution.
-- Media commands are executed without a shell and with explicit arguments.
-- Archive extraction blocks path traversal, links, device files, excessive entry counts, suspicious compression ratios, and decompressed data above 2 GiB.
-- Automated tests cover successful conversions and failure cases that must preserve the original and existing destination.
+- The desktop window can switch between English, Traditional Chinese, and Japanese. English is the default.
+- Debug mode writes a rotating log file and can show the same log inside the window.
+- The command line supports `--debug`, `--log-file`, and `--list-formats`.
+- More image, text, structured-data, archive, audio, and video extensions are registered.
+- The Android application is written in Kotlin and uses Android's system document picker. It does not request storage or network permissions.
+- CI now builds and tests the Android module and launches the APK in an emulator for a startup, UI-tree, screenshot, and logcat check.
 
-## Supported formats
+## Desktop safety rules
 
-| Group | Input and output formats | Notes |
+- Only formats from the same conversion group are offered.
+- Save-as mode keeps the source file.
+- Replace-source mode moves the source to the system recycle bin only after conversion succeeds.
+- Existing outputs are not overwritten unless overwrite is enabled.
+- Output is produced in the destination directory as a temporary file and committed with `os.replace`.
+- Known transparency, animation, formatting, table-shape, metadata, stream, quality, overwrite, and source-replacement risks are shown before conversion.
+- FFmpeg is called without a shell and with explicit arguments.
+- Archive repacking blocks path traversal, symbolic links, device files, encrypted ZIP input, suspicious compression ratios, more than 100,000 entries, and expansion above 2 GiB.
+
+## Desktop formats
+
+Aliases such as `.jpeg`, `.tif`, `.tgz`, `.tbz2`, `.txz`, `.yml`, `.aif`, and `.mpg` are normalized to one canonical target.
+
+| Group | Input and output extensions | Backend |
 |---|---|---|
-| Images | PNG, JPEG, WebP, BMP, TIFF, GIF, ICO | Uses Pillow. Transparency and animation loss are warned before conversion. |
-| Text | TXT, Markdown, HTML | UTF-8 output. Common UTF encodings, Big5/CP950, Shift-JIS, and Latin-1 are read conservatively. |
-| Structured data | JSON, YAML, CSV, XML | CSV output requires flat rows; nested data is rejected rather than silently flattened. |
-| Archives | ZIP, TAR, TAR.GZ/TGZ | Repacked through a protected temporary directory. |
-| Audio | MP3, WAV, FLAC, OGG, AAC, M4A | Requires FFmpeg. |
-| Video | MP4, MKV, WebM, MOV, AVI | Requires FFmpeg. |
+| Images | PNG, JPEG, WebP, BMP/DIB, TIFF, GIF, ICO, TGA, DDS, PCX, PPM, PGM, PBM | Pillow |
+| Text | TXT, Markdown, HTML, reStructuredText, LOG, NFO | Built-in text and HTML handling |
+| Structured data | JSON, JSON Lines, YAML, TOML, CSV, TSV, XML | Python standard library and PyYAML |
+| Archives | ZIP, TAR, TAR.GZ/TGZ, TAR.BZ2/TBZ2, TAR.XZ/TXZ | Python archive libraries with protected extraction |
+| Audio | MP3, WAV, FLAC, OGG, Opus, AAC, M4A, WMA, AIFF | FFmpeg |
+| Video | MP4, MKV, WebM, MOV, AVI, M4V, FLV, MPEG/MPG, 3GP, OGV, MPEG-TS | FFmpeg |
 
-Formats are intentionally grouped. For example, an image can be converted to another image format, but it cannot be mislabeled as an audio file.
+Some encoders depend on the codecs included in the installed FFmpeg build. A failed media conversion leaves the source and any existing destination unchanged.
 
-## Windows installation
+## Android support
 
-### Release executable
+The Kotlin application uses the Storage Access Framework, so the user chooses both source and destination documents through Android's system UI.
 
-Download the Windows artifact from GitHub Releases, extract it, and run `dotconvert.exe`.
+Supported Android conversions are deliberately narrower than the desktop set:
 
-FFmpeg is optional and only required for audio/video conversion. Install FFmpeg and add it to `PATH`, or set `DOTCONVERT_FFMPEG` to the full path of `ffmpeg.exe`.
+| Group | Android input | Android output |
+|---|---|---|
+| Images | PNG, JPEG, WebP, BMP, GIF first frame | PNG, JPEG, WebP |
+| Text | TXT, Markdown, HTML, LOG, reStructuredText, NFO | TXT, Markdown, HTML, LOG, reStructuredText, NFO |
+| Data | JSON, JSON Lines, CSV, TSV | JSON, JSON Lines, CSV, TSV |
 
-### Python installation
+Android conversion is written to the app cache first. The selected document is opened only after the temporary conversion succeeds. The app has an 80-megapixel image limit and a 32 MiB text/data input limit to avoid uncontrolled memory use.
+
+The Android application does not pretend to support arbitrary archive or media transcoding with platform APIs. Those formats remain available in the desktop build through the protected archive pipeline and FFmpeg.
+
+## Desktop installation
 
 Python 3.10 or newer is required.
+
+### Windows
 
 ```powershell
 py -3 -m venv .venv
@@ -53,63 +72,92 @@ py -3 -m venv .venv
 .venv\Scripts\python -m dotconvert
 ```
 
-The repository also includes `run.bat`, which creates the local virtual environment and starts the application.
+`run.bat` performs the virtual-environment setup. Tagged releases also contain a PyInstaller executable.
 
-## Linux installation
+### Linux
 
-Install Tk and FFmpeg through the distribution package manager. On Debian/Ubuntu:
+Install Tk and FFmpeg through the distribution package manager. On Debian or Ubuntu:
 
 ```bash
 sudo apt-get update
 sudo apt-get install -y python3-tk ffmpeg
-```
-
-Then run:
-
-```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install --upgrade pip
 .venv/bin/python -m pip install .
 .venv/bin/python -m dotconvert
 ```
 
-The included `run.sh` performs the virtual-environment setup automatically.
+`run.sh` performs the Python setup.
 
-## Desktop workflow
+### FFmpeg selection
 
-1. Select one source file.
-2. Select a compatible target extension.
-3. Choose **Save as** or **Replace source**.
-4. Enable destination overwrite only when an existing output should be replaced.
-5. Review every warning shown in the conversion preview and confirmation dialog.
-6. Choose the output path and start the conversion.
+Media conversion searches `PATH` for `ffmpeg`. A specific binary can be selected with:
 
-A failed conversion deletes its temporary output and does not modify the original or the existing destination.
+```bash
+export DOTCONVERT_FFMPEG=/full/path/to/ffmpeg
+```
 
-## Command-line use
+On PowerShell:
+
+```powershell
+$env:DOTCONVERT_FFMPEG = "C:\path\to\ffmpeg.exe"
+```
+
+## Android build
+
+Open the `android/` directory in Android Studio, or use Gradle 8.10.2 with JDK 17:
+
+```bash
+gradle -p android :app:testDebugUnitTest :app:assembleDebug
+```
+
+The installable APK is written to:
+
+```text
+android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Tagged GitHub Releases include the Android debug-signed APK for sideload testing. It is not a Play Store signing configuration.
+
+## Debug mode
+
+The desktop window contains a **Debug mode** checkbox and a log viewer. Normal mode records operational information. Debug mode also records selected targets, temporary paths, converter dispatch, and FFmpeg command details.
+
+Default desktop log locations:
+
+- Windows: `%LOCALAPPDATA%\dotconvert\logs\dotconvert.log`
+- Linux: `$XDG_STATE_HOME/dotconvert/dotconvert.log`, or `~/.local/state/dotconvert/dotconvert.log`
+
+Logs rotate at 2 MiB and keep three backups. The Android application keeps up to 500 log lines in memory, displays them in the app, writes them to logcat, and can export them through the system document picker.
+
+Command-line examples:
 
 ```bash
 python -m dotconvert input.png output.webp --quality 90 --yes
-python -m dotconvert input.json output.yaml --yes
-python -m dotconvert input.zip output.tar.gz --yes
+python -m dotconvert input.json output.toml --yes
+python -m dotconvert input.zip output.tar.xz --yes
+python -m dotconvert input.wav output.opus --yes --debug
+python -m dotconvert --list-formats
 ```
 
-Use `--overwrite` to replace an existing destination. Use `--replace-source` to move the original to the recycle bin after success. Without `--yes`, command-line conversion stops and prints any detected warnings.
+Use `--log-file PATH` to select another log file. Use `--overwrite` to replace an existing output. Use `--replace-source` to move the original to the recycle bin after success. Without `--yes`, the CLI prints warnings and stops.
 
-## Development
+## Development and verification
 
 ```bash
 python -m pip install -e ".[dev]"
 ruff check .
-pytest
+pytest --cov=dotconvert --cov-report=term-missing
 pyinstaller --clean --noconfirm dotconvert.spec
+
+gradle -p android :app:testDebugUnitTest :app:assembleDebug
 ```
 
-GitHub Actions runs linting, tests on Windows and Linux, an FFmpeg integration test, package building, and executable smoke checks. Tags matching `v*` build Windows and Linux release archives and publish them to GitHub Releases.
+GitHub Actions performs Python linting, Windows and Linux tests, a real FFmpeg conversion, Windows and Linux executable builds, Android unit tests, an APK build, and an emulator startup check. The emulator job captures the UI hierarchy, screenshot, and logcat output as workflow artifacts.
 
-## Safety boundary
+## Limits
 
-No general converter can guarantee perfect preservation across fundamentally different formats. `.convert` therefore avoids unsupported format pairs, warns about known losses, refuses unsafe archive content, and aborts when a conversion cannot be represented safely. Keep backups for valuable files and inspect converted output before deleting independent backups.
+No converter can preserve every property while moving between formats with different capabilities. `.convert` rejects incompatible groups, warns before known losses, and avoids changing the source until output production succeeds. Important files should still have an independent backup, and converted output should be inspected before that backup is removed.
 
 ## License
 

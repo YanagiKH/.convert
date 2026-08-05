@@ -6,11 +6,28 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from ..errors import DotConvertError
-from ..registry import normalize_extension
+from ..registry import extension_for_path, normalize_extension
+
+PLAIN_TEXT_TARGETS = {".txt", ".log", ".nfo", ".rst"}
 
 
 class _TextExtractor(HTMLParser):
-    BLOCK_TAGS = {"p", "div", "section", "article", "header", "footer", "li", "br", "h1", "h2", "h3", "h4", "h5", "h6"}
+    BLOCK_TAGS = {
+        "p",
+        "div",
+        "section",
+        "article",
+        "header",
+        "footer",
+        "li",
+        "br",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+    }
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -45,7 +62,17 @@ class _TextExtractor(HTMLParser):
 
 def _read_text(source: Path) -> str:
     raw = source.read_bytes()
-    for encoding in ("utf-8-sig", "utf-8", "utf-16", "cp950", "shift_jis", "latin-1"):
+    for encoding in (
+        "utf-8-sig",
+        "utf-8",
+        "utf-16",
+        "utf-32",
+        "cp950",
+        "big5",
+        "shift_jis",
+        "euc_jp",
+        "latin-1",
+    ):
         try:
             return raw.decode(encoding)
         except UnicodeDecodeError:
@@ -127,18 +154,18 @@ def _markdown_to_html(value: str) -> str:
 
 
 def convert_text(source: Path, destination: Path, target_extension: str) -> None:
-    source_extension = normalize_extension(source.suffix)
+    source_extension = extension_for_path(source)
     target = normalize_extension(target_extension)
     try:
         value = _read_text(source)
-        if source.name.lower().endswith((".html", ".htm")):
+        if source_extension == ".html":
             plain = _html_to_text(value)
             markdown_text = plain
         else:
             plain = value
             markdown_text = value
 
-        if target == ".txt":
+        if target in PLAIN_TEXT_TARGETS:
             output = plain
         elif target == ".md":
             output = markdown_text
@@ -147,10 +174,18 @@ def convert_text(source: Path, destination: Path, target_extension: str) -> None
                 output = value
             elif source_extension == ".md":
                 body = _markdown_to_html(value)
-                output = f"<!doctype html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><title>{html.escape(source.stem)}</title></head>\n<body>\n{body}\n</body>\n</html>\n"
+                output = (
+                    "<!doctype html>\n<html lang=\"en\">\n"
+                    f"<head><meta charset=\"utf-8\"><title>{html.escape(source.stem)}</title></head>\n"
+                    f"<body>\n{body}\n</body>\n</html>\n"
+                )
             else:
                 escaped = html.escape(value)
-                output = f"<!doctype html>\n<html lang=\"en\">\n<head><meta charset=\"utf-8\"><title>{html.escape(source.stem)}</title></head>\n<body><pre>{escaped}</pre></body>\n</html>\n"
+                output = (
+                    "<!doctype html>\n<html lang=\"en\">\n"
+                    f"<head><meta charset=\"utf-8\"><title>{html.escape(source.stem)}</title></head>\n"
+                    f"<body><pre>{escaped}</pre></body>\n</html>\n"
+                )
         else:
             raise DotConvertError(f"Unsupported text target: {target}")
         destination.write_text(output, encoding="utf-8", newline="\n")

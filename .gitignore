@@ -11,3 +11,9 @@ dist/
 *.spec.bak
 .DS_Store
 Thumbs.db
+.gradle/
+android/.gradle/
+android/local.properties
+android/**/build/
+*.apk
+*.aab
