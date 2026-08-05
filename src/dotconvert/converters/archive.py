@@ -5,8 +5,8 @@ import stat
 import tarfile
 import tempfile
 import zipfile
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator
 
 from ..errors import DotConvertError, UnsafeArchiveError
 from ..registry import extension_for_path, normalize_extension
