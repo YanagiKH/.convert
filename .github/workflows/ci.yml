@@ -23,6 +23,7 @@ jobs:
       - run: python -m pip install --upgrade pip
       - run: python -m pip install -e ".[dev]"
       - run: ruff check .
+      - run: python -m compileall -q src tests
 
   test:
     name: Test (${{ matrix.os }}, Python ${{ matrix.python }})
@@ -58,8 +59,8 @@ jobs:
         run: echo "DOTCONVERT_FFMPEG=$(python -c 'import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())')" >> "$GITHUB_ENV"
       - run: pytest tests/test_media.py -v
 
-  build:
-    name: Build (${{ matrix.name }})
+  desktop-build:
+    name: Build desktop (${{ matrix.name }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -84,9 +85,77 @@ jobs:
       - run: pyinstaller --clean --noconfirm dotconvert.spec
       - name: Smoke test executable
         shell: bash
-        run: '"${{ matrix.executable }}" --help'
+        run: '"${{ matrix.executable }}" --list-formats'
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
           path: ${{ matrix.executable }}
           if-no-files-found: error
+
+  android-build:
+    name: Android unit tests and APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - run: gradle -p android :app:testDebugUnitTest :app:assembleDebug --stacktrace
+      - name: Validate APK archive
+        run: unzip -t android/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dotconvert-android-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
+  android-emulator:
+    name: Android emulator smoke test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - name: Enable KVM access
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Build, install, launch, and inspect
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          profile: pixel_6
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            gradle -p android :app:assembleDebug --stacktrace
+            adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+            adb logcat -c
+            adb shell am start -W -n io.github.yanagikh.dotconvert/.MainActivity
+            sleep 3
+            adb shell uiautomator dump /sdcard/dotconvert-window.xml
+            adb pull /sdcard/dotconvert-window.xml android-window.xml
+            grep -q '.convert' android-window.xml
+            adb exec-out screencap -p > android-screen.png
+            adb logcat -d > android-logcat.txt
+            if grep -E 'FATAL EXCEPTION|ANR in io.github.yanagikh.dotconvert' android-logcat.txt; then exit 1; fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-emulator-evidence
+          path: |
+            android-window.xml
+            android-screen.png
+            android-logcat.txt
+          if-no-files-found: warn

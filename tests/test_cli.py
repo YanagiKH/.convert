@@ -16,10 +16,33 @@ def test_cli_converts_text_file(tmp_path: Path, monkeypatch, capsys) -> None:
     assert str(destination) in capsys.readouterr().out
 
 
-def test_cli_requires_destination(monkeypatch, capsys, tmp_path: Path) -> None:
+def test_cli_debug_mode_reports_log_file(tmp_path: Path, monkeypatch, capsys) -> None:
     source = tmp_path / "note.txt"
-    source.write_text("content", encoding="utf-8")
-    monkeypatch.setattr(sys, "argv", ["dotconvert", str(source)])
+    destination = tmp_path / "note.html"
+    log_path = tmp_path / "run.log"
+    source.write_text("debug conversion", encoding="utf-8")
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "dotconvert",
+            str(source),
+            str(destination),
+            "--yes",
+            "--debug",
+            "--log-file",
+            str(log_path),
+        ],
+    )
 
-    assert main() == 2
-    assert "destination is required" in capsys.readouterr().err
+    assert main() == 0
+    assert log_path.exists()
+    assert "debug log:" in capsys.readouterr().err
+
+
+def test_cli_lists_formats(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(sys, "argv", ["dotconvert", "--list-formats"])
+    assert main() == 0
+    output = capsys.readouterr().out
+    assert ".tar.xz" in output
+    assert ".jsonl" in output

@@ -9,8 +9,9 @@ from .models import ConversionMode, ConversionPlan, ConversionWarning, Severity
 from .registry import FormatFamily, extension_for_path, family_for_extension, normalize_extension
 
 LOSSY_IMAGE = {".jpg", ".webp", ".gif"}
-LOSSY_AUDIO = {".mp3", ".ogg", ".aac", ".m4a"}
-LOSSY_VIDEO = {".mp4", ".webm", ".avi", ".mov"}
+LOSSY_AUDIO = {".mp3", ".ogg", ".opus", ".aac", ".m4a", ".wma"}
+LOSSY_VIDEO = {".mp4", ".webm", ".avi", ".mov", ".m4v", ".flv", ".mpeg", ".3gp", ".ogv", ".ts"}
+PLAIN_TEXT = {".txt", ".log", ".nfo", ".rst"}
 
 
 def resolve_destination(plan: ConversionPlan) -> Path:
@@ -69,32 +70,108 @@ def assess_risks(plan: ConversionPlan) -> tuple[ConversionWarning, ...]:
     if family == FormatFamily.IMAGE:
         if target_extension in LOSSY_IMAGE:
             warnings.append(ConversionWarning("lossy-image", "The selected image format can reduce quality."))
-        if target_extension == ".jpg" and source_extension in {".png", ".webp", ".gif", ".tiff", ".ico"}:
-            warnings.append(ConversionWarning("alpha-loss", "JPEG cannot preserve transparency; transparent areas will become white."))
-        if source_extension in {".gif", ".webp", ".tiff"} and target_extension not in {".gif", ".webp", ".tiff"}:
-            warnings.append(ConversionWarning("animation-loss", "Animated or multi-page image content may be reduced to the first frame."))
+        if target_extension == ".jpg" and source_extension in {
+            ".png",
+            ".webp",
+            ".gif",
+            ".tiff",
+            ".ico",
+            ".tga",
+            ".dds",
+        }:
+            warnings.append(
+                ConversionWarning(
+                    "alpha-loss",
+                    "JPEG cannot preserve transparency; transparent areas will become white.",
+                )
+            )
+        if source_extension in {".gif", ".webp", ".tiff"} and target_extension not in {
+            ".gif",
+            ".webp",
+            ".tiff",
+        }:
+            warnings.append(
+                ConversionWarning(
+                    "animation-loss",
+                    "Animated or multi-page image content may be reduced to the first frame.",
+                )
+            )
         if target_extension == ".gif":
-            warnings.append(ConversionWarning("palette-loss", "GIF uses a limited color palette and may reduce color detail."))
+            warnings.append(
+                ConversionWarning(
+                    "palette-loss",
+                    "GIF uses a limited color palette and may reduce color detail.",
+                )
+            )
 
     elif family == FormatFamily.TEXT:
-        if target_extension == ".txt":
-            warnings.append(ConversionWarning("formatting-loss", "Plain text cannot preserve rich formatting, links, or embedded media."))
+        if target_extension in PLAIN_TEXT:
+            warnings.append(
+                ConversionWarning(
+                    "formatting-loss",
+                    "Plain text cannot preserve rich formatting, links, or embedded media.",
+                )
+            )
         elif source_extension == ".html" and target_extension == ".md":
-            warnings.append(ConversionWarning("html-to-markdown", "Complex HTML layout and styling cannot be preserved exactly."))
+            warnings.append(
+                ConversionWarning(
+                    "html-to-markdown",
+                    "Complex HTML layout and styling cannot be preserved exactly.",
+                )
+            )
 
     elif family == FormatFamily.DATA:
-        if target_extension == ".csv":
-            warnings.append(ConversionWarning("tabular-only", "CSV only preserves a flat table; nested data cannot be converted safely."))
+        if target_extension in {".csv", ".tsv"}:
+            warnings.append(
+                ConversionWarning(
+                    "tabular-only",
+                    "CSV and TSV only preserve a flat table; nested data cannot be converted safely.",
+                )
+            )
+        if target_extension == ".jsonl":
+            warnings.append(
+                ConversionWarning(
+                    "jsonl-records",
+                    "JSON Lines writes one value per line and may change document framing.",
+                )
+            )
+        if target_extension == ".toml":
+            warnings.append(
+                ConversionWarning(
+                    "toml-shape",
+                    "TOML requires an object root and cannot represent every JSON or YAML value.",
+                )
+            )
         if source_extension == ".xml" or target_extension == ".xml":
-            warnings.append(ConversionWarning("xml-shape", "XML attributes and mixed text may be represented differently after conversion."))
+            warnings.append(
+                ConversionWarning(
+                    "xml-shape",
+                    "XML attributes and mixed text may be represented differently after conversion.",
+                )
+            )
 
     elif family == FormatFamily.ARCHIVE:
-        warnings.append(ConversionWarning("archive-metadata", "Repacking may change compression, timestamps, permissions, or archive comments."))
+        warnings.append(
+            ConversionWarning(
+                "archive-metadata",
+                "Repacking may change compression, timestamps, permissions, or archive comments.",
+            )
+        )
 
     elif family == FormatFamily.MEDIA:
         if target_extension in LOSSY_AUDIO | LOSSY_VIDEO:
-            warnings.append(ConversionWarning("lossy-media", "The selected media format uses lossy encoding and may reduce quality."))
-        warnings.append(ConversionWarning("media-streams", "Unsupported subtitle, attachment, chapter, or metadata streams may not be preserved."))
+            warnings.append(
+                ConversionWarning(
+                    "lossy-media",
+                    "The selected media format uses lossy encoding and may reduce quality.",
+                )
+            )
+        warnings.append(
+            ConversionWarning(
+                "media-streams",
+                "Unsupported subtitle, attachment, chapter, or metadata streams may not be preserved.",
+            )
+        )
 
     if plan.mode == ConversionMode.REPLACE_SOURCE:
         warnings.append(
